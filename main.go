@@ -16,12 +16,10 @@ func main() {
 	//? We can inject our logger, and change this dependency from here
 	l := log.New(os.Stdout, "product-api ", log.LstdFlags)
 
-	hh := handlers.NewHello(l)   // hello handler
-	gh := handlers.NewGoodbye(l) // goodbye handler
+	ph := handlers.NewProducts(l)   // products handler
 
 	sm := http.NewServeMux()
-	sm.Handle("/", hh)
-	sm.Handle("/goodbye", gh)
+	sm.Handle("/", ph)
 
 	s := &http.Server{
 		Addr:         ":8080",
@@ -32,6 +30,7 @@ func main() {
 	}
 
 	go func() {
+		l.Printf("Starting server on port %s\n", s.Addr)
 		err := s.ListenAndServe()
 		if err != nil {
 			l.Fatal(err)
@@ -50,6 +49,7 @@ func main() {
 	sig := <- sigChan
 	l.Println("Received terminate, graceful shutdown", sig)
 
-	tc, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	tc, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	s.Shutdown(tc) // waits until the requests are completed, then shutdown
+	cancel()
 }
