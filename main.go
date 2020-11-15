@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Diego-Paris/microservices-in-go/handlers"
+	"github.com/gorilla/mux"
 )
 
 func main() {
@@ -16,10 +17,21 @@ func main() {
 	//? We can inject our logger, and change this dependency from here
 	l := log.New(os.Stdout, "product-api ", log.LstdFlags)
 
-	ph := handlers.NewProducts(l)   // products handler
+	ph := handlers.NewProducts(l) // products handler
 
-	sm := http.NewServeMux()
-	sm.Handle("/", ph)
+	sm := mux.NewRouter()
+
+	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/", ph.GetProducts)
+
+	putRouter := sm.Methods(http.MethodPut).Subrouter()
+	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProducts)
+	putRouter.Use(ph.MiddlewareProductValidation)
+	//sm.Handle("/products", ph)
+
+	postRouter := sm.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/", ph.AddProduct)
+	postRouter.Use(ph.MiddlewareProductValidation)
 
 	s := &http.Server{
 		Addr:         ":8080",
@@ -46,7 +58,7 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt)
 	signal.Notify(sigChan, os.Kill)
 
-	sig := <- sigChan
+	sig := <-sigChan
 	l.Println("Received terminate, graceful shutdown", sig)
 
 	tc, cancel := context.WithTimeout(context.Background(), 30*time.Second)
