@@ -1,32 +1,55 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"time"
+
+	"github.com/Diego-Paris/microservices-in-go/handlers"
 )
 
 func main() {
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("hello world!")
+	//? We can inject our logger, and change this dependency from here
+	l := log.New(os.Stdout, "product-api ", log.LstdFlags)
 
-		d, err := ioutil.ReadAll(r.Body)
+	hh := handlers.NewHello(l)   // hello handler
+	gh := handlers.NewGoodbye(l) // goodbye handler
 
-		if err == nil {
-			http.Error(w, "Oops, something went wrong", http.StatusBadRequest)
-			return
+	sm := http.NewServeMux()
+	sm.Handle("/", hh)
+	sm.Handle("/goodbye", gh)
+
+	s := &http.Server{
+		Addr:         ":8080",
+		Handler:      sm,
+		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 1 * time.Second,
+	}
+
+	go func() {
+		err := s.ListenAndServe()
+		if err != nil {
+			l.Fatal(err)
 		}
+	}()
 
-		log.Printf("Data %s\n", d)
+	//? this context allows requests 30 seconds
+	//? to attempt gracefully shutting down
+	//? if handlers are still working after
+	//? 30 seconds forcefully shutdown
 
-		fmt.Fprintf(w, "Hello %s\n", d)
-	})
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Kill)
 
-	http.HandleFunc("/goodbye", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("goodbye world!")
-	})
+	sig := <- sigChan
+	l.Println("Received terminate, graceful shutdown", sig)
 
-	http.ListenAndServe(":8080", nil)
+	tc, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	s.Shutdown(tc) // waits until the requests are completed, then shutdown
 }
