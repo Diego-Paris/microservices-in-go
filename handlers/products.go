@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -71,9 +72,8 @@ func (p *Products) UpdateProducts(w http.ResponseWriter, r *http.Request) {
 
 }
 
-type KeyProduct struct {
-
-}
+// KeyProduct used to identify product in context
+type KeyProduct struct{}
 
 // MiddlewareProductValidation does
 func (p Products) MiddlewareProductValidation(next http.Handler) http.Handler {
@@ -83,6 +83,17 @@ func (p Products) MiddlewareProductValidation(next http.Handler) http.Handler {
 		err := prod.FromJSON(r.Body)
 		if err != nil {
 			http.Error(w, "Unable to unmarshal json", http.StatusBadRequest)
+			return
+		}
+
+		// validate the product
+		err = prod.Validate()
+		if err != nil {
+			http.Error(
+				w,
+				fmt.Sprintf("Error validating product: %s", err),
+				http.StatusBadRequest,
+			)
 			return
 		}
 
