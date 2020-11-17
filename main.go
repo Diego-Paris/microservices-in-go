@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Diego-Paris/microservices-in-go/handlers"
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/gorilla/mux"
 )
 
@@ -32,6 +33,12 @@ func main() {
 	postRouter := sm.Methods(http.MethodPost).Subrouter()
 	postRouter.HandleFunc("/", ph.AddProduct)
 	postRouter.Use(ph.MiddlewareProductValidation)
+
+	ops := middleware.RedocOpts{SpecURL: "/swagger.yaml"}
+	sh := middleware.Redoc(ops, nil)
+
+	getRouter.Handle("/docs", sh)
+	getRouter.Handle("/swagger.yaml", http.FileServer(http.Dir("./")))
 
 	s := &http.Server{
 		Addr:         ":8080",
@@ -59,7 +66,7 @@ func main() {
 	signal.Notify(sigChan, os.Kill)
 
 	sig := <-sigChan
-	l.Println("Received terminate, graceful shutdown", sig)
+	l.Println("[EXIT] Received terminate, graceful shutdown", sig)
 
 	tc, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	s.Shutdown(tc) // waits until the requests are completed, then shutdown

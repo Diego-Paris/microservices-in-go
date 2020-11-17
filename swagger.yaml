@@ -1,0 +1,53 @@
+basePath: /
+consumes:
+- application/json
+definitions:
+  Product:
+    description: Product defines the data we are managing
+    properties:
+      description:
+        type: string
+        x-go-name: Description
+      id:
+        format: int64
+        type: integer
+        x-go-name: ID
+      name:
+        type: string
+        x-go-name: Name
+      price:
+        format: float
+        type: number
+        x-go-name: Price
+      sku:
+        type: string
+        x-go-name: SKU
+    type: object
+    x-go-package: github.com/Diego-Paris/microservices-in-go/data
+info:
+  description: Documentation for Product API
+  title: classification of Product API
+  version: 1.0.0
+paths:
+  /products:
+    get:
+      description: Returns a list of products
+      operationId: listProducts
+      responses:
+        "200":
+          $ref: '#/responses/productsResponse'
+          description: ""
+      tags:
+      - products
+produces:
+- application/json
+responses:
+  productsResponse:
+    description: A list of products returns in the response
+    schema:
+      items:
+        $ref: '#/definitions/Product'
+      type: array
+schemes:
+- http
+swagger: "2.0"
