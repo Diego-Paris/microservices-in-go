@@ -8,7 +8,7 @@
 //
 //  Consumes:
 //  - application/json
-// 
+//
 //  Produces:
 //  - application/json
 //  swagger:meta
@@ -33,7 +33,6 @@ type productsResponse struct {
 	Body []data.Product
 }
 
-
 // Products does
 type Products struct {
 	l *log.Logger
@@ -50,7 +49,7 @@ func NewProducts(l *log.Logger) *Products {
 //  200: productsResponse
 
 // GetProducts returns the products from the data store
-func (p *Products) GetProducts(w http.ResponseWriter, h *http.Request) {
+func (p *Products) GetProducts(w http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle GET Products")
 	lp := data.GetProducts()
 
@@ -62,6 +61,34 @@ func (p *Products) GetProducts(w http.ResponseWriter, h *http.Request) {
 	}
 }
 
+// GetProduct returns a single product from data store
+func (p *Products) GetProduct(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r) // takes in id from variable
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Could not parse id to num", http.StatusBadRequest)
+		return
+	}
+
+	prod, err := data.GetProduct(id)
+	if err == data.ErrProductNotFound {
+		http.Error(w, "Could not find product", http.StatusNotFound)
+		return 
+	}
+	if err != nil {
+		http.Error(w, "Product retrieval failed", http.StatusInternalServerError) 
+		return
+	}
+
+	err = prod.ToJSON(w)
+	if err != nil {
+		http.Error(w, "Unable to marshal json", http.StatusInternalServerError)
+		return
+	}
+
+}
+
 // AddProduct a product to the db
 func (p *Products) AddProduct(w http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle POST Products")
@@ -69,13 +96,14 @@ func (p *Products) AddProduct(w http.ResponseWriter, r *http.Request) {
 	prod := r.Context().Value(KeyProduct{}).(data.Product)
 
 	p.l.Printf("Prod: %#v", prod)
+
 	data.AddProduct(&prod)
 }
 
 // UpdateProducts updates in db
 func (p *Products) UpdateProducts(w http.ResponseWriter, r *http.Request) {
 
-	vars := mux.Vars(r)
+	vars := mux.Vars(r) // takes in id from variable
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		http.Error(w, "Could not parse id to num", http.StatusBadRequest)
@@ -95,6 +123,30 @@ func (p *Products) UpdateProducts(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, "Product update failed", http.StatusInternalServerError)
+		return
+	}
+
+}
+
+// DeleteProduct deletes a product from db
+func (p *Products) DeleteProduct(w http.ResponseWriter, r *http.Request) {
+
+	// Takes in id from url path
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Could not parse id to num", http.StatusBadRequest)
+		return
+	}
+
+	// call to db
+	err = data.DeleteProduct(id)
+	if err == data.ErrProductNotFound {
+		http.Error(w, "Product not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Product deletion failed", http.StatusInternalServerError)
 		return
 	}
 

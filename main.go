@@ -22,24 +22,32 @@ func main() {
 
 	sm := mux.NewRouter()
 
+	// [GET]
 	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/{id:[0-9]+}", ph.GetProduct)
 	getRouter.HandleFunc("/", ph.GetProducts)
 
+	// [PUT]
 	putRouter := sm.Methods(http.MethodPut).Subrouter()
-	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProducts)
+	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProducts) // Updates the whole product
 	putRouter.Use(ph.MiddlewareProductValidation)
-	//sm.Handle("/products", ph)
 
+	// [POST]
 	postRouter := sm.Methods(http.MethodPost).Subrouter()
 	postRouter.HandleFunc("/", ph.AddProduct)
 	postRouter.Use(ph.MiddlewareProductValidation)
 
+	// [DELETE]
+	deleteRouter := sm.Methods(http.MethodDelete).Subrouter()
+	deleteRouter.HandleFunc("/{id:[0-9]+}", ph.DeleteProduct)
+
+	// [DOCS]
 	ops := middleware.RedocOpts{SpecURL: "/swagger.yaml"}
 	sh := middleware.Redoc(ops, nil)
-
 	getRouter.Handle("/docs", sh)
 	getRouter.Handle("/swagger.yaml", http.FileServer(http.Dir("./")))
 
+	// [SERVER CONFIG]
 	s := &http.Server{
 		Addr:         ":8080",
 		Handler:      sm,
@@ -48,6 +56,7 @@ func main() {
 		WriteTimeout: 1 * time.Second,
 	}
 
+	// [RUNS SERVER ON GOROUTINE]
 	go func() {
 		l.Printf("Starting server on port %s\n", s.Addr)
 		err := s.ListenAndServe()
@@ -61,6 +70,7 @@ func main() {
 	//? if handlers are still working after
 	//? 30 seconds forcefully shutdown
 
+	// [GRACEFUL SHUTDOWN ON KILL OR INTERRUPT]
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, os.Interrupt)
 	signal.Notify(sigChan, os.Kill)

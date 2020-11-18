@@ -28,6 +28,13 @@ func (p *Product) FromJSON(r io.Reader) error {
 	return e.Decode(p)
 }
 
+// ToJSON encodes the contents of the type directly into a write
+// does not need to allocate memory into a buffer, it is direct
+func (p *Product) ToJSON(w io.Writer) error {
+	e := json.NewEncoder(w)
+	return e.Encode(p)
+}
+
 // Validate validates
 func (p *Product) Validate() error {
 	validate := validator.New()
@@ -66,6 +73,16 @@ func GetProducts() Products {
 	return productList
 }
 
+// GetProduct abstracts the logic from getting one item from database
+func GetProduct(id int) (*Product, error) {
+	prod, _, err := findProduct(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return prod, nil
+}
+
 // AddProduct abstracts the logic of adding a product to a database
 func AddProduct(p *Product) {
 
@@ -83,6 +100,22 @@ func UpdateProduct(id int, p *Product) error {
 
 	p.ID = id
 	productList[pos] = p
+	return nil
+}
+
+// DeleteProduct deletes a product by id in database
+func DeleteProduct(id int) error {
+	_, pos, err := findProduct(id)
+	if err != nil {
+		return err
+	}
+
+	// swap items
+	productList[pos], productList[len(productList) - 1] = productList[len(productList) - 1], productList[pos] 
+
+	// truncate list
+	productList = productList[:len(productList) - 1]
+
 	return nil
 }
 
